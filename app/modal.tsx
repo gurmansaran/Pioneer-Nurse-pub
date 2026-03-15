@@ -1,17 +1,17 @@
 import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet } from 'react-native';
-
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { colors } from '@/constants/Colors';
 
 export default function ModalScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Modal</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/modal.tsx" />
-
-      {/* Use a light status bar on iOS to account for the black space above the modal */}
+      <Text style={styles.title}>Pioneer Nurse</Text>
+      <Text style={styles.subtitle}>v1.0.0</Text>
+      <Text style={styles.info}>
+        Built with love for TWU BSN students.{'\n'}
+        Always free. No ads. No subscriptions.
+      </Text>
+      <Text style={styles.credit}>Built by Gurman</Text>
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
     </View>
   );
@@ -22,14 +22,29 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
+    padding: 24,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.primary[500],
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  subtitle: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    marginTop: 4,
+  },
+  info: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 22,
+  },
+  credit: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    marginTop: 24,
   },
 });
