@@ -17,7 +17,7 @@ import { colors } from '@/constants/Colors';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, loading } = useAuthStore();
+  const { signIn, loading, enterDemoMode } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -77,6 +77,14 @@ export default function LoginScreen() {
             <Text style={styles.link}>Sign Up</Text>
           </Link>
         </View>
+
+        <Button
+          title="Try Demo"
+          onPress={enterDemoMode}
+          variant="ghost"
+          fullWidth
+          style={{ marginTop: 16 }}
+        />
 
         <Text style={styles.free}>Always free. Built for TWU BSN students.</Text>
       </KeyboardAvoidingView>

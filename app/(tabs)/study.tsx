@@ -18,7 +18,7 @@ export default function StudyScreen() {
       <Text style={styles.title}>Study Hub</Text>
 
       {/* Flashcards */}
-      <TouchableOpacity onPress={() => router.push('/study/flashcards/')}>
+      <TouchableOpacity onPress={() => router.push('/study/flashcards/' as any)}>
         <Card style={styles.moduleCard}>
           <View style={styles.moduleHeader}>
             <Text style={styles.moduleTitle}>Flashcards</Text>
@@ -33,7 +33,7 @@ export default function StudyScreen() {
       </TouchableOpacity>
 
       {/* Practice Questions */}
-      <TouchableOpacity onPress={() => router.push('/study/questions/')}>
+      <TouchableOpacity onPress={() => router.push('/study/questions/' as any)}>
         <Card style={styles.moduleCard}>
           <View style={styles.moduleHeader}>
             <Text style={styles.moduleTitle}>Practice Questions</Text>
@@ -47,7 +47,7 @@ export default function StudyScreen() {
 
       {/* Pharmacology */}
       {courses.some(c => c.course_code === 'NURS 3813') && (
-        <TouchableOpacity onPress={() => router.push('/study/pharm/')}>
+        <TouchableOpacity onPress={() => router.push('/study/pharm/' as any)}>
           <Card style={styles.moduleCard}>
             <View style={styles.moduleHeader}>
               <Text style={styles.moduleTitle}>Pharmacology</Text>

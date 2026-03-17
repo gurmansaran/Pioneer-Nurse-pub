@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 SplashScreen.preventAutoHideAsync();
 
 function useProtectedRoute() {
-  const { session, initialized } = useAuthStore();
+  const { session, initialized, demoMode } = useAuthStore();
   const { profile } = useProfileStore();
   const segments = useSegments();
   const router = useRouter();
@@ -27,6 +27,21 @@ function useProtectedRoute() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
+
+    if (demoMode) {
+      if (profile?.onboarding_completed) {
+        // Demo user finished onboarding → go to main app
+        if (inAuthGroup || inOnboarding) {
+          router.replace('/(tabs)');
+        }
+      } else {
+        // Demo user hasn't finished onboarding yet
+        if (!inOnboarding) {
+          router.replace('/(onboarding)/welcome');
+        }
+      }
+      return;
+    }
 
     if (!session) {
       // Not signed in → go to login
@@ -44,7 +59,7 @@ function useProtectedRoute() {
         router.replace('/(tabs)');
       }
     }
-  }, [session, initialized, profile?.onboarding_completed, segments]);
+  }, [session, initialized, demoMode, profile?.onboarding_completed, segments]);
 }
 
 export default function RootLayout() {
@@ -96,6 +111,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="clinical" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

@@ -44,7 +44,14 @@ Parkland Memorial Hospital, Texas Health Resources, Baylor Scott & White, Medica
 - NEVER fabricate drug dosages or clinical values — if unsure, say so
 - If the student's patho_status is NOT "completed", do NOT say "as you learned in pathophysiology" — instead, explain the disease process from scratch
 - Adjust pharmacology explanations based on pharm_confidence level
-- Reference the student's upcoming exams when motivating them`;
+- Reference the student's upcoming exams when motivating them
+
+## Adaptive Behavior
+- If the student's anxiety level is "high", be EXTRA warm, encouraging, and patient. Break things into smaller steps. Celebrate small wins.
+- If anxiety is "medium", be supportive and occasionally check in on how they're feeling.
+- If the student is a "crammer", gently suggest spacing their study sessions but never scold.
+- Adjust question difficulty based on the student's adaptive difficulty level for the course.
+- If a topic is in the student's weak areas, spend extra time explaining fundamentals before moving to application.`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -61,6 +68,20 @@ Deno.serve(async (req: Request) => {
   try {
     const { message, conversation_history, model, user_context } = await req.json();
 
+    // Build adaptive profile section if available
+    const adaptiveProfile = user_context.adaptive_params;
+    const adaptiveSection = adaptiveProfile ? `
+
+STUDENT ADAPTIVE PROFILE:
+- Pharmacology difficulty level: ${adaptiveProfile.pharm_difficulty ?? 2}/5
+- Health Assessment difficulty level: ${adaptiveProfile.assessment_difficulty ?? 2}/5
+- Foundations difficulty level: ${adaptiveProfile.foundations_difficulty ?? 2}/5
+- Pathophysiology difficulty level: ${adaptiveProfile.patho_difficulty ?? 2}/5
+- Current weak areas: ${user_context.weak_areas?.map((w: any) => w.topic + ' (' + Math.round(w.accuracy * 100) + '%)').join(', ') || 'None identified yet'}
+- Study pattern: ${adaptiveProfile.study_pattern ?? 'unknown'} ${adaptiveProfile.study_pattern === 'crammer' ? '(tends to study in long infrequent sessions — encourage shorter, more frequent study)' : adaptiveProfile.study_pattern === 'consistent' ? '(studies regularly — reinforce this habit)' : '(irregular schedule — gently encourage consistency)'}
+- Anxiety level: ${adaptiveProfile.anxiety_level ?? 'low'}${adaptiveProfile.anxiety_level === 'high' ? ' — BE EXTRA WARM, ENCOURAGING, AND PATIENT. Break explanations into smaller steps. Celebrate every win.' : adaptiveProfile.anxiety_level === 'medium' ? ' — be supportive and check in on how they are feeling' : ''}
+- Grade self-assessment: ${adaptiveProfile.grade_self_report ?? 'not reported'}` : '';
+
     const dynamicContext = `
 CURRENT STUDENT CONTEXT:
 Name: ${user_context.first_name}
@@ -71,7 +92,7 @@ Patho status: ${user_context.patho_status}
 Pharm confidence: ${user_context.pharm_confidence}
 Upcoming exams: ${user_context.upcoming_exams?.map((e: any) => e.course_code + ' ' + (e.name || '') + ' on ' + e.date).join('; ') || 'None set'}
 Weak areas: ${user_context.weak_areas?.map((w: any) => w.topic + ' (' + Math.round(w.accuracy * 100) + '%)').join(', ') || 'None identified yet'}
-Study preferences: ${user_context.study_styles?.join(', ') || 'Not set'}`;
+Study preferences: ${user_context.study_styles?.join(', ') || 'Not set'}${adaptiveSection}`;
 
     const messages = [
       ...(conversation_history || []).map((msg: any) => ({

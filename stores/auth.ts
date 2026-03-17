@@ -7,7 +7,10 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   initialized: boolean;
+  demoMode: boolean;
   setSession: (session: Session | null) => void;
+  enterDemoMode: () => void;
+  exitDemoMode: () => void;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -19,10 +22,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
   initialized: false,
+  demoMode: false,
 
   setSession: (session) => set({
     session,
     user: session?.user ?? null,
+  }),
+
+  enterDemoMode: () => set({
+    demoMode: true,
+    initialized: true,
+    session: { user: { id: 'demo-user', email: 'demo@pioneernurse.app' } } as any,
+    user: { id: 'demo-user', email: 'demo@pioneernurse.app' } as any,
+  }),
+
+  exitDemoMode: () => set({
+    demoMode: false,
+    session: null,
+    user: null,
   }),
 
   signUp: async (email, password) => {

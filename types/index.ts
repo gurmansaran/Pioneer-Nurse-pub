@@ -176,6 +176,126 @@ export interface StudySession {
   created_at: string;
 }
 
+// ─── Clinical Prep ────────────────────────────────────────────────────
+export type ClinicalUnitType =
+  | 'med_surg'
+  | 'labor_delivery'
+  | 'mother_baby'
+  | 'pediatrics'
+  | 'psychiatric'
+  | 'icu'
+  | 'emergency'
+  | 'community_health'
+  | 'other';
+
+export interface ClinicalBriefCondition {
+  name: string;
+  patho_context: string;
+  assessment_findings: string;
+  medications: string;
+  interventions: string;
+}
+
+export interface ClinicalBriefMedication {
+  name: string;
+  indication: string;
+  nursing_implication: string;
+  hold_parameter: string;
+}
+
+export interface ClinicalBriefJSON {
+  unit_overview: string;
+  conditions: ClinicalBriefCondition[];
+  medications: ClinicalBriefMedication[];
+  assessment_priorities: string[];
+  documentation_tips: string[];
+  instructor_assessment: string[];
+  addressing_nerves: string;
+  checklist: string[];
+}
+
+export interface ClinicalBrief {
+  id: string;
+  user_id: string;
+  unit_type: ClinicalUnitType;
+  hospital: string | null;
+  has_patient_assignment: boolean;
+  patient_info: Record<string, unknown>;
+  nervous_areas: string[];
+  brief_json: ClinicalBriefJSON;
+  created_at: string;
+}
+
+export interface ClinicalReflection {
+  id: string;
+  user_id: string;
+  brief_id: string | null;
+  went_well: string | null;
+  harder_than_expected: string | null;
+  topics_to_review: string[];
+  confidence_rating: number;
+  created_at: string;
+}
+
+// ─── Adaptive Difficulty ──────────────────────────────────────────────
+
+export type GradeSelfReport = 'great' | 'okay' | 'struggling';
+
+export interface StudentParameters {
+  id: string;
+  user_id: string;
+  pharm_difficulty: number;
+  assessment_difficulty: number;
+  foundations_difficulty: number;
+  patho_difficulty: number;
+  study_pattern: 'consistent' | 'crammer' | 'irregular';
+  avg_session_minutes: number;
+  sessions_per_week: number;
+  anxiety_level: 'low' | 'medium' | 'high';
+  last_confidence_checkin: string;
+  last_repersonalization: string;
+  grade_self_report: GradeSelfReport | null;
+  focus_course: string | null;
+  next_exam_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudyAnalytics {
+  id: string;
+  user_id: string;
+  course_code: string;
+  topic: string;
+  mastery_score: number;
+  total_attempts: number;
+  avg_response_time_seconds: number | null;
+  last_anxiety_flag: string | null;
+  difficulty_level: Difficulty;
+  updated_at: string;
+}
+
+export interface DifficultyOverride {
+  id: string;
+  user_id: string;
+  course_code: string;
+  topic: string;
+  override_difficulty: Difficulty;
+  reason: string;
+  created_at: string;
+}
+
+export interface AdaptiveEvent {
+  id: string;
+  user_id: string;
+  event_type: string;
+  course_code: string | null;
+  topic: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  message: string | null;
+  created_at: string;
+}
+
 // ─── TEAS ──────────────────────────────────────────────────────────────
 export interface TEASProgress {
   id: string;

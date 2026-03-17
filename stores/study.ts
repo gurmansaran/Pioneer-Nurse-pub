@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { reviewCard, type ReviewQuality } from '@/lib/spaced-repetition';
+import { useAuthStore } from '@/stores/auth';
+import { getDemoDecks, getDemoCards, getDemoDueCards, getDemoCardProgress, getDemoQuestions } from '@/seeds/demo-data';
 import type { Deck, Card, CardProgress, Question, QuestionAttempt, StudySession } from '@/types';
+
+const isDemoMode = () => useAuthStore.getState().demoMode;
 
 interface StudyState {
   // Flashcards
@@ -58,6 +62,12 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   sessionStartTime: null,
 
   fetchDecks: async (courseCode) => {
+    if (isDemoMode()) {
+      let decks = getDemoDecks();
+      if (courseCode) decks = decks.filter(d => d.course_code === courseCode);
+      set({ decks });
+      return;
+    }
     let query = supabase.from('decks').select('*').order('name');
     if (courseCode) query = query.eq('course_code', courseCode);
     const { data, error } = await query;
@@ -66,6 +76,10 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   },
 
   fetchCards: async (deckId) => {
+    if (isDemoMode()) {
+      set({ currentCards: getDemoCards(deckId) });
+      return;
+    }
     const { data, error } = await supabase
       .from('cards')
       .select('*')
@@ -75,6 +89,10 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   },
 
   fetchDueCards: async (userId) => {
+    if (isDemoMode()) {
+      set({ dueCards: getDemoDueCards(), cardProgress: getDemoCardProgress() });
+      return;
+    }
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('card_progress')
@@ -105,19 +123,21 @@ export const useStudyStore = create<StudyState>((set, get) => ({
       quality,
     );
 
-    const { error } = await supabase
-      .from('card_progress')
-      .upsert({
-        user_id: userId,
-        card_id: cardId,
-        interval: result.interval,
-        repetition: result.repetition,
-        efactor: result.efactor,
-        next_review_date: result.nextReviewDate,
-        last_reviewed_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,card_id' });
+    if (!isDemoMode()) {
+      const { error } = await supabase
+        .from('card_progress')
+        .upsert({
+          user_id: userId,
+          card_id: cardId,
+          interval: result.interval,
+          repetition: result.repetition,
+          efactor: result.efactor,
+          next_review_date: result.nextReviewDate,
+          last_reviewed_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,card_id' });
 
-    if (error) throw error;
+      if (error) throw error;
+    }
 
     // Update local state
     set(state => ({
@@ -137,6 +157,15 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   },
 
   fetchQuestions: async (filters) => {
+    if (isDemoMode()) {
+      const questions = getDemoQuestions(filters);
+      set({
+        questions,
+        currentQuestion: questions[0] || null,
+        questionIndex: 0,
+      });
+      return;
+    }
     let query = supabase.from('questions').select('*');
     if (filters.courseCode) query = query.eq('course_code', filters.courseCode);
     if (filters.ngnType) query = query.eq('ngn_type', filters.ngnType);
@@ -152,6 +181,7 @@ export const useStudyStore = create<StudyState>((set, get) => ({
   },
 
   submitAnswer: async (userId, questionId, answer, isCorrect, partialScore, timeSpent) => {
+    if (isDemoMode()) return;
     const { error } = await supabase.from('question_attempts').insert({
       user_id: userId,
       question_id: questionId,
@@ -198,17 +228,19 @@ export const useStudyStore = create<StudyState>((set, get) => ({
     const { activeSession, sessionStartTime } = get();
     if (!activeSession || !sessionStartTime) return;
 
-    const duration = Math.round((Date.now() - sessionStartTime) / 1000);
-    const { error } = await supabase.from('study_sessions').insert({
-      user_id: activeSession.user_id,
-      session_type: activeSession.session_type,
-      course_code: activeSession.course_code,
-      duration_seconds: duration,
-      cards_reviewed: activeSession.cards_reviewed,
-      questions_answered: activeSession.questions_answered,
-    });
+    if (!isDemoMode()) {
+      const duration = Math.round((Date.now() - sessionStartTime) / 1000);
+      const { error } = await supabase.from('study_sessions').insert({
+        user_id: activeSession.user_id,
+        session_type: activeSession.session_type,
+        course_code: activeSession.course_code,
+        duration_seconds: duration,
+        cards_reviewed: activeSession.cards_reviewed,
+        questions_answered: activeSession.questions_answered,
+      });
 
-    if (error) throw error;
+      if (error) throw error;
+    }
     set({ activeSession: null, sessionStartTime: null });
   },
 }));

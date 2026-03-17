@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { sendChatMessage, type ChatMessage } from '@/lib/anthropic';
+import { useAuthStore } from '@/stores/auth';
+import { getDemoChatResponse } from '@/seeds/demo-data';
 import type { Conversation, Message, Profile, UserCourse, UserExam, WeakArea } from '@/types';
+
+const isDemoMode = () => useAuthStore.getState().demoMode;
 
 interface ChatState {
   conversations: Conversation[];
@@ -33,6 +37,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   fetchConversations: async (userId) => {
+    if (isDemoMode()) return;
     const { data, error } = await supabase
       .from('conversations')
       .select('*')
@@ -44,6 +49,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadConversation: async (conversationId) => {
+    if (isDemoMode()) return;
     const [convRes, msgRes] = await Promise.all([
       supabase.from('conversations').select('*').eq('id', conversationId).single(),
       supabase.from('messages').select('*').eq('conversation_id', conversationId).order('created_at'),
@@ -57,6 +63,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   createConversation: async (userId, courseCode) => {
+    if (isDemoMode()) {
+      const conversation: Conversation = {
+        id: `demo-conv-${Date.now()}`,
+        user_id: userId,
+        title: null,
+        course_code: courseCode || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      set({
+        currentConversation: conversation,
+        messages: [],
+      });
+      return conversation;
+    }
     const { data, error } = await supabase
       .from('conversations')
       .insert({
@@ -81,6 +102,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
       let conversation = get().currentConversation;
       if (!conversation) {
         conversation = await get().createConversation(userId);
+      }
+
+      if (isDemoMode()) {
+        const now = new Date().toISOString();
+
+        // Add user message locally
+        const userMsg: Message = {
+          id: `demo-msg-${Date.now()}`,
+          conversation_id: conversation.id,
+          role: 'user',
+          content,
+          model_used: null,
+          tokens_used: null,
+          created_at: now,
+        };
+        set(state => ({ messages: [...state.messages, userMsg] }));
+
+        // Generate canned response
+        const responseContent = getDemoChatResponse(content);
+        const assistantMsg: Message = {
+          id: `demo-msg-${Date.now() + 1}`,
+          conversation_id: conversation.id,
+          role: 'assistant',
+          content: responseContent,
+          model_used: 'demo',
+          tokens_used: null,
+          created_at: new Date().toISOString(),
+        };
+        set(state => ({ messages: [...state.messages, assistantMsg] }));
+
+        // Update conversation title
+        if (get().messages.length <= 3 && !conversation.title) {
+          const title = content.slice(0, 60) + (content.length > 60 ? '...' : '');
+          set({ currentConversation: { ...conversation, title } });
+        }
+        return;
       }
 
       // Save user message

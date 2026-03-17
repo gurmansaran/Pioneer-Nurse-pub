@@ -1,15 +1,21 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, type ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, View, StyleSheet, type ViewStyle } from 'react-native';
 import { colors } from '@/constants/Colors';
 
 interface ToggleProps {
   label: string;
+  subtitle?: string;
   selected: boolean;
   onToggle: () => void;
   style?: ViewStyle;
 }
 
-export function Toggle({ label, selected, onToggle, style }: ToggleProps) {
+export function Toggle({ label, subtitle, selected, onToggle, style }: ToggleProps) {
+  // Support "\n" in label as title + subtitle split
+  const parts = label.split('\n');
+  const title = parts[0];
+  const desc = subtitle || (parts.length > 1 ? parts.slice(1).join('\n') : undefined);
+
   return (
     <TouchableOpacity
       onPress={onToggle}
@@ -20,9 +26,14 @@ export function Toggle({ label, selected, onToggle, style }: ToggleProps) {
       ]}
       activeOpacity={0.7}
     >
-      <Text style={[styles.text, selected && styles.selectedText]}>
-        {label}
+      <Text style={[styles.title, selected && styles.selectedTitle]}>
+        {title}
       </Text>
+      {desc ? (
+        <Text style={[styles.desc, selected && styles.selectedDesc]}>
+          {desc}
+        </Text>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -30,10 +41,10 @@ export function Toggle({ label, selected, onToggle, style }: ToggleProps) {
 const styles = StyleSheet.create({
   toggle: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1.5,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   selected: {
     backgroundColor: colors.primary[50],
@@ -43,13 +54,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderColor: colors.border,
   },
-  text: {
+  title: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.text,
   },
-  selectedText: {
+  selectedTitle: {
     color: colors.primary[500],
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  desc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  selectedDesc: {
+    color: colors.primary[400],
   },
 });

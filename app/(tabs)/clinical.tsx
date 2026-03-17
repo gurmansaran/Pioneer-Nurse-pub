@@ -1,139 +1,210 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Toggle } from '@/components/ui/Toggle';
+import { Badge } from '@/components/ui/Badge';
+import { ClinicalPrepCard } from '@/components/clinical/ClinicalPrepCard';
 import { useAuthStore } from '@/stores/auth';
 import { useProfileStore } from '@/stores/profile';
-import { sendChatMessage } from '@/lib/anthropic';
+import { useClinicalStore } from '@/stores/clinical';
 import { colors } from '@/constants/Colors';
 
-type UnitType = 'med_surg' | 'labor_delivery' | 'psych' | 'peds' | 'community' | 'icu';
-
-const unitTypes: { id: UnitType; label: string; desc: string }[] = [
-  { id: 'med_surg', label: 'Med-Surg', desc: 'General medical-surgical unit' },
-  { id: 'labor_delivery', label: 'L&D / OB', desc: 'Labor, delivery, postpartum' },
-  { id: 'psych', label: 'Psychiatric', desc: 'Mental health unit' },
-  { id: 'peds', label: 'Pediatrics', desc: 'Pediatric unit' },
-  { id: 'community', label: 'Community', desc: 'Community health / public health' },
-  { id: 'icu', label: 'ICU / Critical Care', desc: 'Intensive care unit' },
-];
+const unitLabels: Record<string, string> = {
+  med_surg: 'Med-Surg',
+  labor_delivery: 'Labor & Delivery',
+  mother_baby: 'Mother-Baby',
+  pediatrics: 'Pediatrics',
+  psychiatric: 'Psychiatric',
+  icu: 'ICU',
+  emergency: 'Emergency',
+  community_health: 'Community Health',
+  other: 'General',
+};
 
 export default function ClinicalScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
-  const { profile, courses, exams, weakAreas } = useProfileStore();
-  const [selectedUnit, setSelectedUnit] = useState<UnitType | null>(null);
-  const [briefing, setBriefing] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { profile } = useProfileStore();
+  const {
+    briefs,
+    reflections,
+    loading,
+    fetchBriefs,
+    fetchReflections,
+    loadFromCache,
+    resetFlow,
+  } = useClinicalStore();
 
-  const generateBriefing = async () => {
-    if (!selectedUnit || !user || !profile) return;
-    setLoading(true);
-    setBriefing(null);
-    try {
-      const response = await sendChatMessage(
-        `Generate a pre-clinical briefing for a ${unitTypes.find(u => u.id === selectedUnit)?.label} unit rotation tomorrow. Include:
-1. Top 5 conditions I'll likely see
-2. Key medications (with hold parameters)
-3. Common instructor assessment questions
-4. First-semester clinical mistakes to avoid
-5. Documentation standards for this setting
-6. Quick vital signs reference for this population`,
-        [],
-        profile,
-        courses,
-        exams,
-        weakAreas,
-      );
-      setBriefing(response.content);
-    } catch (err: any) {
-      setBriefing(`Error: ${err.message || 'Failed to generate briefing'}`);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    loadFromCache();
+    if (user?.id) {
+      fetchBriefs(user.id).catch(() => {});
+      fetchReflections(user.id).catch(() => {});
     }
+  }, [user?.id]);
+
+  const firstName = profile?.first_name || 'there';
+
+  const handleStartPrep = () => {
+    resetFlow();
+    router.push('/clinical/unit-select' as any);
   };
+
+  const handleOpenBrief = (briefId: string) => {
+    router.push({ pathname: '/clinical/brief' as any, params: { briefId } });
+  };
+
+  const handleReflection = (briefId?: string) => {
+    router.push({
+      pathname: '/clinical/reflection' as any,
+      params: briefId ? { briefId } : {},
+    });
+  };
+
+  // Check for briefs without reflections
+  const briefIdsWithReflections = new Set(
+    reflections.map((r) => r.brief_id).filter(Boolean),
+  );
+  const briefsNeedingReflection = briefs.filter(
+    (b) => !briefIdsWithReflections.has(b.id),
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Clinical Prep</Text>
+      <Text style={styles.title}>Clinical</Text>
       <Text style={styles.subtitle}>
-        Get ready for your next shift with an AI-generated briefing tailored to your unit.
+        Prep for your shift, review past briefs, and reflect on your growth.
       </Text>
 
-      {/* Unit Selection */}
-      <Text style={styles.sectionTitle}>Select your unit</Text>
-      <View style={styles.unitGrid}>
-        {unitTypes.map(unit => (
-          <TouchableOpacity
-            key={unit.id}
-            style={[
-              styles.unitCard,
-              selectedUnit === unit.id && styles.unitCardSelected,
-            ]}
-            onPress={() => setSelectedUnit(unit.id)}
-          >
-            <Text style={[
-              styles.unitLabel,
-              selectedUnit === unit.id && styles.unitLabelSelected,
-            ]}>
-              {unit.label}
+      {/* Clinical Prep CTA */}
+      <ClinicalPrepCard firstName={firstName} onPress={handleStartPrep} />
+
+      {/* Needs Reflection */}
+      {briefsNeedingReflection.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Reflect on recent clinicals</Text>
+          <Text style={styles.sectionHint}>
+            You have {briefsNeedingReflection.length} shift{briefsNeedingReflection.length > 1 ? 's' : ''} without a reflection. Taking 2 minutes to reflect helps lock in your learning.
+          </Text>
+          {briefsNeedingReflection.slice(0, 3).map((brief) => (
+            <TouchableOpacity
+              key={brief.id}
+              onPress={() => handleReflection(brief.id)}
+              activeOpacity={0.7}
+            >
+              <Card style={styles.reflectCard} padding={14}>
+                <View style={styles.reflectRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.reflectUnit}>
+                      {unitLabels[brief.unit_type] || brief.unit_type}
+                    </Text>
+                    <Text style={styles.reflectDate}>
+                      {new Date(brief.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                      {brief.hospital ? ` \u2022 ${brief.hospital}` : ''}
+                    </Text>
+                  </View>
+                  <Badge text="Reflect" variant="warning" />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Past Briefs */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Past Briefs</Text>
+        {loading && briefs.length === 0 && (
+          <ActivityIndicator
+            size="small"
+            color={colors.primary[500]}
+            style={{ marginTop: 12 }}
+          />
+        )}
+        {!loading && briefs.length === 0 && (
+          <Card style={styles.emptyCard} padding={20}>
+            <Text style={styles.emptyText}>
+              No briefs yet. Start your first clinical prep above and you'll see your briefs here.
             </Text>
-            <Text style={styles.unitDesc}>{unit.desc}</Text>
-          </TouchableOpacity>
-        ))}
+          </Card>
+        )}
+        {briefs.map((brief) => {
+          const hasReflection = briefIdsWithReflections.has(brief.id);
+          return (
+            <TouchableOpacity
+              key={brief.id}
+              onPress={() => handleOpenBrief(brief.id)}
+              activeOpacity={0.7}
+            >
+              <Card style={styles.briefCard} padding={14}>
+                <View style={styles.briefRow}>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.briefBadges}>
+                      <Badge
+                        text={unitLabels[brief.unit_type] || brief.unit_type}
+                        variant="info"
+                      />
+                      {hasReflection && (
+                        <Badge text="Reflected" variant="success" />
+                      )}
+                    </View>
+                    <Text style={styles.briefHospital}>
+                      {brief.hospital || 'Clinical'}
+                    </Text>
+                    <Text style={styles.briefDate}>
+                      {new Date(brief.created_at).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={styles.arrow}>{'\u203A'}</Text>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <Button
-        title={loading ? 'Generating...' : 'Prep for Tomorrow'}
-        onPress={generateBriefing}
-        disabled={!selectedUnit || loading}
-        fullWidth
-        size="lg"
-        style={{ marginTop: 20 }}
-      />
-
-      {/* Briefing Content */}
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
-          <Text style={styles.loadingText}>Creating your briefing...</Text>
-        </View>
-      )}
-
-      {briefing && !loading && (
-        <Card style={styles.briefingCard}>
-          <Text style={styles.briefingTitle}>
-            Pre-Clinical Briefing: {unitTypes.find(u => u.id === selectedUnit)?.label}
-          </Text>
-          <Text style={styles.briefingContent}>{briefing}</Text>
+      {/* Quick Reference */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Reference</Text>
+        <Card style={styles.refCard}>
+          <Text style={styles.refTitle}>Vital Signs — Adult Ranges</Text>
+          <View style={styles.refRow}>
+            <Text style={styles.refLabel}>HR</Text>
+            <Text style={styles.refValue}>60-100 bpm</Text>
+          </View>
+          <View style={styles.refRow}>
+            <Text style={styles.refLabel}>BP</Text>
+            <Text style={styles.refValue}>{'<120/<80 mmHg'}</Text>
+          </View>
+          <View style={styles.refRow}>
+            <Text style={styles.refLabel}>RR</Text>
+            <Text style={styles.refValue}>12-20 breaths/min</Text>
+          </View>
+          <View style={styles.refRow}>
+            <Text style={styles.refLabel}>Temp</Text>
+            <Text style={styles.refValue}>97.8-99.1 F (36.5-37.3 C)</Text>
+          </View>
+          <View style={styles.refRow}>
+            <Text style={styles.refLabel}>SpO2</Text>
+            <Text style={styles.refValue}>95-100%</Text>
+          </View>
         </Card>
-      )}
-
-      {/* Quick Reference Cards */}
-      <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Quick Reference</Text>
-      <Card style={styles.refCard}>
-        <Text style={styles.refTitle}>Vital Signs — Adult Ranges</Text>
-        <View style={styles.refRow}>
-          <Text style={styles.refLabel}>HR</Text>
-          <Text style={styles.refValue}>60-100 bpm</Text>
-        </View>
-        <View style={styles.refRow}>
-          <Text style={styles.refLabel}>BP</Text>
-          <Text style={styles.refValue}>{'<120/<80 mmHg'}</Text>
-        </View>
-        <View style={styles.refRow}>
-          <Text style={styles.refLabel}>RR</Text>
-          <Text style={styles.refValue}>12-20 breaths/min</Text>
-        </View>
-        <View style={styles.refRow}>
-          <Text style={styles.refLabel}>Temp</Text>
-          <Text style={styles.refValue}>97.8-99.1 F (36.5-37.3 C)</Text>
-        </View>
-        <View style={styles.refRow}>
-          <Text style={styles.refLabel}>SpO2</Text>
-          <Text style={styles.refValue}>95-100%</Text>
-        </View>
-      </Card>
+      </View>
     </ScrollView>
   );
 }
@@ -158,67 +229,88 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     lineHeight: 21,
+    marginBottom: 20,
+  },
+
+  // Sections
+  section: {
+    marginTop: 28,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 24,
     marginBottom: 12,
   },
-  unitGrid: {
+  sectionHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+
+  // Reflect cards
+  reflectCard: {
+    marginBottom: 8,
+  },
+  reflectRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    alignItems: 'center',
   },
-  unitCard: {
-    width: '48%',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  unitCardSelected: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
-  },
-  unitLabel: {
+  reflectUnit: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
   },
-  unitLabelSelected: {
-    color: colors.primary[500],
-  },
-  unitDesc: {
-    fontSize: 12,
+  reflectDate: {
+    fontSize: 13,
     color: colors.textSecondary,
     marginTop: 2,
   },
-  loadingContainer: {
+
+  // Brief cards
+  briefCard: {
+    marginBottom: 8,
+  },
+  briefRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 32,
-    gap: 12,
   },
-  loadingText: {
+  briefBadges: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  briefHospital: {
     fontSize: 15,
-    color: colors.textSecondary,
-  },
-  briefingCard: {
-    marginTop: 20,
-  },
-  briefingTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.primary[500],
-    marginBottom: 12,
-  },
-  briefingContent: {
-    fontSize: 15,
+    fontWeight: '600',
     color: colors.text,
-    lineHeight: 24,
   },
+  briefDate: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  arrow: {
+    fontSize: 24,
+    color: colors.textTertiary,
+    fontWeight: '300',
+    paddingLeft: 8,
+  },
+
+  // Empty state
+  emptyCard: {
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Quick reference
   refCard: {
     marginBottom: 12,
   },

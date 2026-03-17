@@ -4,44 +4,50 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DrugCard } from '@/components/cards/DrugCard';
 import { Badge } from '@/components/ui/Badge';
 import { useProfileStore } from '@/stores/profile';
+import { drugCards } from '@/seeds/drugCards';
 import { colors } from '@/constants/Colors';
 
-// Sample drug data to demonstrate the drug card component
-const sampleDrugs = [
-  {
-    genericName: 'metoprolol',
-    brandName: 'Lopressor',
-    drugClass: 'Beta-Blocker (Beta-1 Selective)',
-    holdParameters: 'Hold if HR < 60 bpm or SBP < 100 mmHg. Notify provider.',
-    mechanism: 'Blocks beta-1 adrenergic receptors in the heart, reducing heart rate, contractility, and blood pressure.',
-    sideEffects: ['Bradycardia', 'Hypotension', 'Fatigue', 'Dizziness', 'Bronchospasm (at higher doses)'],
-    nursingConsiderations: [
-      'Check apical pulse for 1 full minute before administration',
-      'Do NOT stop abruptly — taper to prevent rebound hypertension',
-      'Monitor blood glucose in diabetic patients (masks hypoglycemia symptoms)',
-      'Teach patient to rise slowly (orthostatic hypotension)',
-    ],
-    memoryTrick: '"olol" = beta-blocker. Metro-prol-ol: Think "Metro" = city heart, slowing down the city pace.',
-    classColor: '#2563EB',
-  },
-  {
-    genericName: 'lisinopril',
-    brandName: 'Zestril',
-    drugClass: 'ACE Inhibitor',
-    holdParameters: 'Hold if SBP < 90 mmHg or K+ > 5.0 mEq/L. Monitor renal function.',
-    mechanism: 'Inhibits angiotensin-converting enzyme (ACE), preventing conversion of angiotensin I to angiotensin II. Reduces vasoconstriction and aldosterone secretion.',
-    sideEffects: ['Dry, persistent cough', 'Hyperkalemia', 'Angioedema (rare but serious)', 'Hypotension', 'Dizziness'],
-    nursingConsiderations: [
-      'Monitor potassium levels — risk of hyperkalemia',
-      'Avoid potassium supplements and K+-sparing diuretics',
-      'Report swelling of face/lips/tongue immediately (angioedema)',
-      'Contraindicated in pregnancy (category D)',
-      'Monitor BUN/creatinine for renal function',
-    ],
-    memoryTrick: '"pril" = ACE inhibitor. "Lisin-o-PRIL": "April showers" = dry cough is the hallmark side effect.',
-    classColor: '#16A34A',
-  },
-];
+const CLASS_COLORS: Record<string, string> = {
+  'Beta': '#2563EB',
+  'ACE': '#16A34A',
+  'ARB': '#059669',
+  'Loop': '#D97706',
+  'Anticoagulant': '#DC2626',
+  'LMWH': '#DC2626',
+  'Insulin': '#7C3AED',
+  'Penicillin': '#0891B2',
+  'Aminopenicillin': '#0891B2',
+  'Cephalosporin': '#0891B2',
+  'Fluoroquinolone': '#0891B2',
+  'Glycopeptide': '#0891B2',
+  'Opioid': '#BE185D',
+  'Statin': '#4F46E5',
+  'HMG-CoA': '#4F46E5',
+  'SABA': '#0D9488',
+  'Anticholinergic': '#0D9488',
+  'LABA': '#0D9488',
+  'Cardiac Glycoside': '#B91C1C',
+  'Biguanide': '#7C3AED',
+};
+
+function getClassColor(drugClass: string): string {
+  for (const [key, color] of Object.entries(CLASS_COLORS)) {
+    if (drugClass.includes(key)) return color;
+  }
+  return '#6366F1';
+}
+
+const mappedDrugs = drugCards.map(d => ({
+  genericName: d.drug_name,
+  brandName: d.brand_names[0],
+  drugClass: d.drug_class,
+  holdParameters: d.hold_parameters,
+  mechanism: d.mechanism_of_action,
+  sideEffects: d.side_effects,
+  nursingConsiderations: d.nursing_implications,
+  memoryTrick: d.memory_trick,
+  classColor: getClassColor(d.drug_class),
+}));
 
 export default function PharmScreen() {
   const { profile } = useProfileStore();
@@ -67,7 +73,7 @@ export default function PharmScreen() {
           Hold parameters are always shown first — that's what saves lives.
         </Text>
 
-        {sampleDrugs.map((drug, i) => (
+        {mappedDrugs.map((drug, i) => (
           <View key={i} style={styles.drugCardWrapper}>
             <DrugCard {...drug} />
           </View>

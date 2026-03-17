@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth';
 import type { Profile, UserCourse, UserExam, WeakArea } from '@/types';
 import type { Semester, Campus, PathoStatus, PharmConfidence, StudyStyle } from '@/constants/curriculum';
+
+const isDemoMode = () => useAuthStore.getState().demoMode;
 
 interface ProfileState {
   profile: Profile | null;
@@ -38,6 +41,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   loading: false,
 
   fetchProfile: async (userId) => {
+    if (isDemoMode()) return;
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -48,6 +52,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   fetchCourses: async (userId) => {
+    if (isDemoMode()) return;
     const { data, error } = await supabase
       .from('user_courses')
       .select('*')
@@ -57,6 +62,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   fetchExams: async (userId) => {
+    if (isDemoMode()) return;
     const { data, error } = await supabase
       .from('user_exams')
       .select('*')
@@ -67,6 +73,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   fetchWeakAreas: async (userId) => {
+    if (isDemoMode()) return;
     const { data, error } = await supabase
       .from('weak_areas')
       .select('*')
@@ -76,6 +83,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   fetchAll: async (userId) => {
+    if (isDemoMode()) return;
     set({ loading: true });
     try {
       await Promise.all([
@@ -92,30 +100,47 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   updateProfile: async (updates) => {
     const profile = get().profile;
     if (!profile) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', profile.id);
-    if (error) throw error;
+    if (!isDemoMode()) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', profile.id);
+      if (error) throw error;
+    }
     set({ profile: { ...profile, ...updates } as Profile });
   },
 
   createProfile: async (userId, data) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
     const profileData = {
       id: userId,
       ...data,
       onboarding_completed: false,
-      streak_count: 0,
-      last_study_date: null,
+      streak_count: isDemoMode() ? 3 : 0,
+      last_study_date: isDemoMode() ? yesterday.toISOString().split('T')[0] : null,
     };
-    const { error } = await supabase
-      .from('profiles')
-      .upsert(profileData);
-    if (error) throw error;
+    if (!isDemoMode()) {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(profileData);
+      if (error) throw error;
+    }
     set({ profile: profileData as unknown as Profile });
   },
 
   saveCourses: async (userId, courses) => {
+    if (isDemoMode()) {
+      // In demo mode, store courses locally with generated IDs
+      const localCourses = courses.map((c, i) => ({
+        ...c,
+        id: `demo-course-${i}`,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+      })) as UserCourse[];
+      set({ courses: localCourses });
+      return;
+    }
     // Delete existing courses then insert new ones
     await supabase.from('user_courses').delete().eq('user_id', userId);
     if (courses.length > 0) {
@@ -127,6 +152,16 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   saveExams: async (userId, exams) => {
+    if (isDemoMode()) {
+      const localExams = exams.map((e, i) => ({
+        ...e,
+        id: `demo-exam-${i}`,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+      })) as UserExam[];
+      set({ exams: localExams });
+      return;
+    }
     await supabase.from('user_exams').delete().eq('user_id', userId);
     if (exams.length > 0) {
       const rows = exams.map(e => ({ ...e, user_id: userId }));
